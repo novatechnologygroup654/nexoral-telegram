@@ -4,6 +4,26 @@ const express = require("express");
 const app = express();
 app.use(express.json({ limit: "10kb" }));
 
+// Temporary browser access for testing local HTML files.
+// When the website is hosted, restrict this to its real domain.
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+
+  if (origin === "null") {
+    res.setHeader("Access-Control-Allow-Origin", "null");
+  }
+
+  res.setHeader("Vary", "Origin");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+
+  next();
+});
+
 app.get("/", (req, res) => {
   res.send("Nexoral Telegram service is running.");
 });
@@ -12,7 +32,16 @@ app.post("/api/order", async (req, res) => {
   try {
     const { name, contact, service, budget, details } = req.body || {};
 
-    if (!name || !contact || !service || !details) {
+    if (
+      typeof name !== "string" ||
+      typeof contact !== "string" ||
+      typeof service !== "string" ||
+      typeof details !== "string" ||
+      !name.trim() ||
+      !contact.trim() ||
+      !service.trim() ||
+      !details.trim()
+    ) {
       return res.status(400).json({
         error: "Please complete all required order fields."
       });
@@ -23,23 +52,23 @@ app.post("/api/order", async (req, res) => {
 
     if (!token || !chatId) {
       return res.status(500).json({
-        error: "The Telegram service has not been configured yet."
+        error: "Telegram settings are missing."
       });
     }
 
     const message = [
-      "🆕 NEW NEXORAL ORDER",
+      "NEW NEXORAL ORDER",
       "",
-      `Name: ${String(name).slice(0, 150)}`,
-      `Contact: ${String(contact).slice(0, 200)}`,
-      `Service: ${String(service).slice(0, 150)}`,
+      `Name: ${name.slice(0, 150)}`,
+      `Contact: ${contact.slice(0, 200)}`,
+      `Service: ${service.slice(0, 150)}`,
       `Budget: ${String(budget || "Not provided").slice(0, 100)}`,
       "",
       "Project details:",
-      String(details).slice(0, 2500)
+      details.slice(0, 2500)
     ].join("\n");
 
-    const response = await fetch(
+    const telegramResponse = await fetch(
       `https://api.telegram.org/bot${token}/sendMessage`,
       {
         method: "POST",
@@ -51,23 +80,29 @@ app.post("/api/order", async (req, res) => {
       }
     );
 
-    const result = await response.json();
+    const result = await telegramResponse.json();
 
-    if (!response.ok || !result.ok) {
+    if (!telegramResponse.ok || !result.ok) {
       console.error("Telegram delivery failed:", result.description);
       return res.status(502).json({
         error: "Telegram could not receive the order."
       });
     }
 
-    res.json({ success: true, message: "Order sent to Nexoral." });
+    return res.json({
+      success: true,
+      message: "Your order was sent successfully."
+    });
   } catch (error) {
     console.error("Order error:", error.message);
-    res.status(500).json({ error: "Could not process the order." });
+    return res.status(500).json({
+      error: "Could not process the order."
+    });
   }
 });
 
 const port = process.env.PORT || 3000;
+
 app.listen(port, () => {
   console.log(`Nexoral service listening on port ${port}`);
 });
