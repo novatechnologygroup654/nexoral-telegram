@@ -1,11 +1,11 @@
-
+```javascript
 const express = require("express");
 
 const app = express();
+
 app.use(express.json({ limit: "10kb" }));
 
-// Temporary browser access for testing local HTML files.
-// When the website is hosted, restrict this to its real domain.
+// Allow local HTML testing and handle browser preflight requests.
 app.use((req, res, next) => {
   const origin = req.headers.origin;
 
@@ -14,8 +14,14 @@ app.use((req, res, next) => {
   }
 
   res.setHeader("Vary", "Origin");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET, POST, OPTIONS"
+  );
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type"
+  );
 
   if (req.method === "OPTIONS") {
     return res.sendStatus(204);
@@ -30,20 +36,36 @@ app.get("/", (req, res) => {
 
 app.post("/api/order", async (req, res) => {
   try {
-    const { name, contact, service, budget, details } = req.body || {};
+    // Accept the field names sent by orders.html.
+    const {
+      customerName,
+      name,
+      contact,
+      country,
+      service,
+      budget,
+      details
+    } = req.body || {};
+
+    const customer = customerName || name;
 
     if (
-      typeof name !== "string" ||
+      typeof customer !== "string" ||
       typeof contact !== "string" ||
+      typeof country !== "string" ||
       typeof service !== "string" ||
+      typeof budget !== "string" ||
       typeof details !== "string" ||
-      !name.trim() ||
+      !customer.trim() ||
       !contact.trim() ||
+      !country.trim() ||
       !service.trim() ||
+      !budget.trim() ||
       !details.trim()
     ) {
       return res.status(400).json({
-        error: "Please complete all required order fields."
+        success: false,
+        message: "Please complete all required order fields."
       });
     }
 
@@ -51,18 +73,22 @@ app.post("/api/order", async (req, res) => {
     const chatId = process.env.TELEGRAM_CHAT_ID;
 
     if (!token || !chatId) {
+      console.error("Telegram environment variables are missing.");
+
       return res.status(500).json({
-        error: "Telegram settings are missing."
+        success: false,
+        message: "The enquiry service is not configured yet."
       });
     }
 
     const message = [
-      "NEW NEXORAL ORDER",
+      "NEW NEXORAL PROJECT ENQUIRY",
       "",
-      `Name: ${name.slice(0, 150)}`,
+      `Name: ${customer.slice(0, 150)}`,
       `Contact: ${contact.slice(0, 200)}`,
+      `Country: ${country.slice(0, 100)}`,
       `Service: ${service.slice(0, 150)}`,
-      `Budget: ${String(budget || "Not provided").slice(0, 100)}`,
+      `Estimated budget: ${budget.slice(0, 100)}`,
       "",
       "Project details:",
       details.slice(0, 2500)
@@ -72,7 +98,9 @@ app.post("/api/order", async (req, res) => {
       `https://api.telegram.org/bot${token}/sendMessage`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json"
+        },
         body: JSON.stringify({
           chat_id: chatId,
           text: message
@@ -83,20 +111,28 @@ app.post("/api/order", async (req, res) => {
     const result = await telegramResponse.json();
 
     if (!telegramResponse.ok || !result.ok) {
-      console.error("Telegram delivery failed:", result.description);
+      console.error(
+        "Telegram delivery failed:",
+        result.description || "Unknown Telegram error"
+      );
+
       return res.status(502).json({
-        error: "Telegram could not receive the order."
+        success: false,
+        message: "Telegram could not receive the enquiry."
       });
     }
 
     return res.json({
       success: true,
-      message: "Your order was sent successfully."
+      message: "Your enquiry was sent successfully."
     });
+
   } catch (error) {
     console.error("Order error:", error.message);
+
     return res.status(500).json({
-      error: "Could not process the order."
+      success: false,
+      message: "Could not process the enquiry."
     });
   }
 });
@@ -106,3 +142,4 @@ const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log(`Nexoral service listening on port ${port}`);
 });
+```
