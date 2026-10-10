@@ -116,19 +116,22 @@ app.post("/api/order", async (req, res) => {
       }
     );
 
-    const result = await telegramResponse.json();
+    
+    const telegramUrl =
+      "https://api.telegram.org/bot" +
+      token +
+      "/sendMessage";
 
-    // Handle Telegram delivery errors.
-    if (!telegramResponse.ok || !result.ok) {
-      console.error(
-        "Telegram delivery failed:",
-        result.description || "Unknown Telegram error"
-      );
-
-      return res.status(502).json({
-        success: false,
-        message: "Telegram could not receive the enquiry."
-      });
+    const telegramResponse = await fetch(telegramUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: message
+      })
+    });
     }
 
     // Confirm successful delivery.
