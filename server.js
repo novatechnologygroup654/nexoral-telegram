@@ -91,11 +91,11 @@ app.post("/api/order", async (req, res) => {
     const message = [
       "NEW NEXORAL PROJECT ENQUIRY",
       "",
-      `Name: ${customer.slice(0, 150)}`,
-      `Contact: ${contact.slice(0, 200)}`,
-      `Country: ${country.slice(0, 100)}`,
-      `Service: ${service.slice(0, 150)}`,
-      `Estimated budget: ${budget.slice(0, 100)}`,
+      "Name: " + customer.slice(0, 150),
+      "Contact: " + contact.slice(0, 200),
+      "Country: " + country.slice(0, 100),
+      "Service: " + service.slice(0, 150),
+      "Estimated budget: " + budget.slice(0, 100),
       "",
       "Project details:",
       details.slice(0, 2500)
