@@ -30,13 +30,14 @@ app.use((req, res, next) => {
   next();
 });
 
+// Check that the service is running.
 app.get("/", (req, res) => {
   res.send("Nexoral Telegram service is running.");
 });
 
+// Receive and forward project enquiries to Telegram.
 app.post("/api/order", async (req, res) => {
   try {
-    // Accept the field names sent by orders.html.
     const {
       customerName,
       name,
@@ -47,8 +48,10 @@ app.post("/api/order", async (req, res) => {
       details
     } = req.body || {};
 
+    // Support both customerName and name.
     const customer = customerName || name;
 
+    // Validate required form fields.
     if (
       typeof customer !== "string" ||
       typeof contact !== "string" ||
@@ -69,11 +72,14 @@ app.post("/api/order", async (req, res) => {
       });
     }
 
+    // Read credentials from Render environment variables.
     const token = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;
 
     if (!token || !chatId) {
-      console.error("Telegram environment variables are missing.");
+      console.error(
+        "Telegram environment variables are missing."
+      );
 
       return res.status(500).json({
         success: false,
@@ -81,6 +87,7 @@ app.post("/api/order", async (req, res) => {
       });
     }
 
+    // Build the Telegram message.
     const message = [
       "NEW NEXORAL PROJECT ENQUIRY",
       "",
@@ -94,6 +101,7 @@ app.post("/api/order", async (req, res) => {
       details.slice(0, 2500)
     ].join("\n");
 
+    // Send the enquiry to Telegram.
     const telegramResponse = await fetch(
       `https://api.telegram.org/bot${token}/sendMessage`,
       {
@@ -110,6 +118,7 @@ app.post("/api/order", async (req, res) => {
 
     const result = await telegramResponse.json();
 
+    // Handle Telegram delivery errors.
     if (!telegramResponse.ok || !result.ok) {
       console.error(
         "Telegram delivery failed:",
@@ -122,6 +131,7 @@ app.post("/api/order", async (req, res) => {
       });
     }
 
+    // Confirm successful delivery.
     return res.json({
       success: true,
       message: "Your enquiry was sent successfully."
@@ -137,9 +147,12 @@ app.post("/api/order", async (req, res) => {
   }
 });
 
+// Start the server.
 const port = process.env.PORT || 3000;
 
 app.listen(port, () => {
-  console.log(`Nexoral service listening on port ${port}`);
+  console.log(
+    `Nexoral service listening on port ${port}`
+  );
 });
 ```
